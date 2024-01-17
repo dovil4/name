@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="styles.css" rel="stylesheet">
+    <title>Typing game</title>
+    <style>
+
+    </style>
+</head>
+<body>
+
+    <div id="gameblock">
+        <h1>Typing Game</h1>
+        <div id="instructions">
+            <details>
+                <summary>Info</summary>
+                <p>
+                    To <u>Play</u> the game tap on the big white field and <u>start typing text.</u>
+                    Type as fast as you can, time is very limited
+                    After playing you will be able to see your progress stats.
+                </p>
+                <ul>
+                    <li>Press <strong>"STATS"</strong> to see your stats.</li>
+                    <li>Press <strong>"Change text"</strong> to change the text you are typing.</li>
+                    <li>Press <strong>ESC</strong> to temporarly pause the game.</li>
+                    <li>Press <strong>Enter</strong> to restart the game.</li>
+                </ul>
+            </details>
+        </div>
+        <div id="buttons">
+            <div class="buttonspan">
+                <button class="button" id="stats">STATS</button>
+                <span class="tooltip">stats</span>
+            </div>
+            <div class="buttonspan">
+                <button class="button" id="changeText">CHANGE TEXT</button>
+                <span class="tooltip">change text</span>
+            </div>
+            <div class="buttonspan">
+                <button class="button" id="pause">PAUSE / ESC</button>
+                <span class="tooltip">pause / resume</span>
+            </div>
+            <div class="buttonspan">
+                <button class="button" id="restart">RESTART / Enter</button>
+                <span class="tooltip">restart</span>
+            </div>
+        </div>
+        <div id="game">
+            <div class="timerbtn" id="timer">time</div>
+            <div class="text-display" id="textDisplaybtn">Text</div>
+
+            <textarea id="textInput"  autofocus placeholder="type text here"></textarea>
+            <div class="buttonspan">
+                <div id="buttons"><button class="button" id="quit">Quit</button></div>
+                <span class="tooltip">quit</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalpause" class="modal-table">
+        <div class="modal-content">
+            <span class="close" id="closeEsc">&times;</span>
+            <h2>Get some rest</h2>
+            <button class="button" id="resume">Resume</button>
+            <button class="button" id="secondrestart">Restart</button>
+            <button class="button" id="secondquit">Quit</button>
+            <div class="modal-image">
+                <img src="work-tired.gif" alt="">
+            </div>
+        </div>
+    </div>
+
+    <div id="modalstats" class="modal-table">
+        <div class="modal-content">
+            <span class="close" id="closeStats">&times;</span>
+            <h2>STATISTICS</h2>
+            <ul class="stats-list">
+                <li>No results available</li>
+            </ul>
+            <div class="modal-image">
+                <img src="fighting.gif" alt="">
+            </div>
+        </div>
+    </div>
+
+<script>
+    const RANDOM_QUOTE_API_URL = 'https://api.quotable.io/random';
+
+let textDisplayData = {
+    displayedText: '',
+    userInput: '',
+
+    fetchText: function() {
+        fetch(RANDOM_QUOTE_API_URL)
+            .then(response => response.json())
+            .then(data => {
+                this.displayedText = data.content;
+                this.displayText();
+            })
+            .catch(error => {
+                console.error('Error fetching quote:', error);
+                document.getElementById('textDisplaybtn').innerText = 'Failed to load quote';
+            });
+    },
+
+    displayText: function() {
+        const textDisplayElement = document.getElementById('textDisplaybtn');
+        textDisplayElement.innerHTML = '';
+        this.displayedText.split('').forEach(character => {
+            const characterSpan = document.createElement('span');
+            characterSpan.innerText = character;
+            characterSpan.classList.add('default');
+            textDisplayElement.appendChild(characterSpan);
+        });
+    },
+
+        compareInput: function() {
+            const textInput = document.getElementById('textInput').value;
+            const textDisplaySpans = document.querySelectorAll('#textDisplaybtn span');
+            textDisplaySpans.forEach((charSpan, index) => {
+                const character = textInput[index];
+                if (character == null) {
+                    if (index === textInput.length) {
+                        charSpan.classList.add('current');
+                    } else {
+                        charSpan.classList.remove('current');
+                    }
+                    charSpan.classList.remove('correct', 'incorrect');
+                } else if (character === charSpan.innerText) {
+                    charSpan.classList.add('correct');
+                    charSpan.classList.remove('incorrect', 'current');
+                } else {
+                    charSpan.classList.add('incorrect');
+                    charSpan.classList.remove('correct', 'current');
+                }
+            });
+        }
+    };
+
+    const MAX_TIME = 40;
+
+let countdown = {
+    time: MAX_TIME,
+    intervalId: null,
+    timerOn: false,
+    pauseTime: 0,
+
+    start: function() {
+        if (!this.timerOn && !this.intervalId) {
+            this.time = MAX_TIME;
+            this.timerOn = true;
+            this.intervalId = setInterval(() => {
+                this.time--;
+
+                document.getElementById('timer').innerText = this.time;
+
+                if (this.time <= 0) {
+                    this.stop();
+                }
+            }, 1000);
+        }
+    },
+
+    stop: function() {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+            this.time = MAX_TIME;
+            document.getElementById('timer').innerText = this.time;
+            this.timerOn = false;
+            this.pauseTime = 0;
+
+            document.getElementById('textInput').disabled = true;
+
+
+            results.evaluateText();
+            results.calculateResults();
+        results.updateStatsList(true);
+        document.getElementById("modalstats").style.display = "block";
+        results.cumulativeCorrectWords = 0;
+        results.cumulativeIncorrectWords = 0;
+        results.totalTypedWords = 0;
+        document.getElementById('textInput').value = '';
+        document.getElementById('textInput').disabled = false;
+
+    }
+
+    },
+
+    pause: function() {
+    if (this.timerOn && this.intervalId) {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+        this.pauseTime = this.time;
+        this.timerOn = false;
+        console.log("Timer paused at " + this.pauseTime + " seconds");
+    }
+},
+
+resume: function() {
+    console.log("Attempting to resume. TimerOn:", this.timerOn, "PauseTime:", this.pauseTime);
+    if (!this.timerOn && this.pauseTime > 0) {
+        this.time = this.pauseTime;
+        this.timerOn = true;
+        this.start();
+    }
+},
+restart: function() {
+
+    if (this.intervalId) {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+    }
+
+
+    this.timerOn = false;
+    this.time = MAX_TIME;
+    this.pauseTime = 0;
+    results.cumulativeCorrectWords = 0;
+    results.cumulativeIncorrectWords = 0;
+    results.totalTypedWords = 0;
+
+
+    document.getElementById('textInput').value = '';
+    document.getElementById('textInput').disabled = false;
+    textDisplayData.fetchText();
+
+
+    document.getElementById('timer').innerText = this.time;
+    this.start();
+},
+
+    isTimerRunning: function() {
+        return this.timerOn;
+    }
+};
+
+
+function checkTimerStatus() {
+        const statsButton = document.getElementById('stats');
+        const changeTextButton = document.getElementById('changeText');
+
+        if (countdown.timerOn) {
+            statsButton.disabled = true;
+            changeTextButton.disabled = true;
+        } else {
+            statsButton.disabled = false;
+            changeTextButton.disabled = false;
+        }
+}
+
+
+
+let results = {
+    usersInput: '',
+    Allwords: '',
+    correctWords: '',
+    IncorrectWords: '',
+    speed: '',
+    accuracy: '',
+    cumulativeCorrectWords: 0,
+    cumulativeIncorrectWords: 0,
+    totalTypedWords: 0,
+
+    evaluateText: function() {
+        const textInputWords = document.getElementById('textInput').value.trim().split(' ');
+        const displayedTextWords = textDisplayData.displayedText.split(' ');
+
+        let correctWords = 0;
+        let incorrectWords = 0;
+
+        textInputWords.forEach((word, index) => {
+            if (index < displayedTextWords.length) {
+                if (word === displayedTextWords[index]) {
+                    correctWords++;
+                } else {
+                    incorrectWords++;
+                }
+            }
+        });
+
+        incorrectWords += Math.max(0, textInputWords.length - displayedTextWords.length);
+
+
+        this.cumulativeCorrectWords += correctWords;
+        this.cumulativeIncorrectWords += incorrectWords;
+    },
+
+    calculateResults: function() {
+
+        this.totalTypedWords = this.cumulativeCorrectWords + this.cumulativeIncorrectWords;
+
+        this.speed = (60 / MAX_TIME) * this.cumulativeCorrectWords;
+        this.accuracy = (this.cumulativeCorrectWords * 100) / this.totalTypedWords;
+
+        this.speed = `The speed is ${this.speed.toFixed(2)} words per minute`;
+        this.accuracy = `Accuracy percentage is ${this.accuracy.toFixed(2)}%`;
+    },
+
+
+    updateStatsList: function(dataAvailable) {
+    const statsList = document.querySelector('.stats-list');
+    const firstListItem = statsList.querySelector('li');
+
+    if (dataAvailable) {
+        const newListItem = document.createElement('li');
+        newListItem.textContent = `${this.speed}, ${this.accuracy}`;
+
+        if (firstListItem && firstListItem.textContent === 'No results available') {
+            statsList.replaceChild(newListItem, firstListItem);
+        } else {
+            statsList.appendChild(newListItem);
+        }
+    }
+}
+}
+
+document.getElementById('pause').onclick = function() {
+    countdown.pause();
+        document.getElementById("modalpause").style.display = "block";
+  }
+
+  document.getElementById('stats').onclick = function() {
+    document.getElementById("modalstats").style.display = "block";
+  }
+
+  document.getElementById("closeEsc").onclick = function() {
+    document.getElementById("modalpause").style.display = "none";
+    countdown.resume();
+  }
+
+  document.getElementById("resume").onclick = function() {
+    document.getElementById("modalpause").style.display = "none";
+    countdown.resume();
+}
+
+  document.getElementById("closeStats").onclick = function() {
+    document.getElementById("modalstats").style.display = "none";
+  }
+
+  window.onclick = function(event) {
+    if (event.target === document.getElementById("modalpause")) {
+        document.getElementById("modalpause").style.display = "none";
+        countdown.resume();
+    } else if (event.target === document.getElementById("modalstats")) {
+        document.getElementById("modalstats").style.display = "none";
+    }
+  }
+
+
+document.getElementById('textInput').addEventListener('input', function() {
+    textDisplayData.compareInput();
+
+    if (!countdown.isTimerRunning()) {
+        countdown.start();
+    }
+
+    if (this.value.length === textDisplayData.displayedText.length) {
+
+        results.evaluateText();
+        results.updateStatsList(true);
+
+
+        this.value = '';
+        textDisplayData.fetchText();
+    }
+});
+
+
+document.getElementById('changeText').addEventListener('click', function() {
+    textDisplayData.fetchText();
+});
+
+textDisplayData.fetchText();
+document.getElementById('timer').innerText = MAX_TIME;
+
+
+
+document.getElementById('textInput').addEventListener('input', function() {
+        textDisplayData.compareInput();
+    });
+
+document.getElementById('changeText').addEventListener('click', function() {
+        textDisplayData.fetchText();
+    });
+
+    document.getElementById('quit').addEventListener('click', function() {
+    countdown.stop();
+    document.getElementById("modalstats").style.display = "none";
+});
+
+document.getElementById('secondquit').addEventListener('click', function() {
+    countdown.stop();
+    document.getElementById("modalpause").style.display = "none";
+})
+
+document.getElementById('secondrestart').addEventListener('click', function() {
+    countdown.restart();
+    document.getElementById("modalpause").style.display = "none";
+});
+
+document.getElementById('restart').addEventListener('click', function() {
+    countdown.restart();
+});
+
+textDisplayData.fetchText();
+
+document.getElementById('timer').innerText = MAX_TIME;
+
+
+
+
+</script>
+</body>
+
+</html>
